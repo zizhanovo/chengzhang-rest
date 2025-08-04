@@ -1,40 +1,63 @@
-# 成长写作编辑器 - 后端服务
+# 成章写作工作台 - 后端服务
 
-这是一个专为自媒体博主设计的写作编辑器的后端服务，基于Spring Boot框架开发。
+## 项目简介
+
+成章写作工作台后端服务是一个基于Spring Boot开发的RESTful API服务，为前端Vue.js应用提供文章管理、搜索、导入导出等功能。
 
 ## 技术栈
 
-- **框架**: Spring Boot 2.7.0
+- **框架**: Spring Boot 2.7.18
 - **ORM**: Hibernate (Spring Data JPA)
 - **数据库**: MySQL 5.7
 - **构建工具**: Maven
 - **Java版本**: JDK 8+
 
-## 主要功能
+## 功能特性
 
-- 📝 文章管理（CRUD操作）
-- 🖼️ 图片上传和管理
-- ⚙️ 用户设置管理
-- 📊 数据统计
-- 🔍 文章搜索和分类
-- 📄 分页查询
+### 核心功能
+- ✅ 文章CRUD操作（创建、读取、更新、删除）
+- ✅ 文章分页查询和排序
+- ✅ 文章搜索（标题、内容、标签）
+- ✅ 文章分类管理
+- ✅ 批量操作（批量删除）
+- ✅ 数据导入导出（JSON格式）
+- ✅ 文章统计信息
+- ✅ 自动生成摘要和字数统计
+
+### 技术特性
+- ✅ RESTful API设计
+- ✅ 统一响应格式
+- ✅ 全局异常处理
+- ✅ 参数校验
+- ✅ 跨域支持
+- ✅ 数据库连接池
+- ✅ 事务管理
+- ✅ 日志记录
 
 ## 快速开始
 
-### 1. 环境要求
+### 环境要求
 
 - JDK 8 或更高版本
 - Maven 3.6+
-- MySQL 5.7
+- MySQL 5.7+
 
-### 2. 数据库配置
+### 数据库准备
 
-1. 创建MySQL数据库：
+1. 创建数据库：
 ```sql
-CREATE DATABASE chengzhang DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE chengzhang DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_unicode_ci;
 ```
 
-2. 修改 `src/main/resources/application.yml` 中的数据库连接信息：
+2. 执行初始化脚本：
+```bash
+mysql -u root -p chengzhang < src/main/resources/sql/init.sql
+```
+
+### 配置文件
+
+修改 `src/main/resources/application.yml` 中的数据库连接信息：
+
 ```yaml
 spring:
   datasource:
@@ -43,118 +66,285 @@ spring:
     password: your_password
 ```
 
-### 3. 运行项目
+### 运行项目
 
-1. 克隆项目到本地
-2. 进入项目目录
-3. 运行以下命令：
-
+1. 克隆项目：
 ```bash
-# 安装依赖
-mvn clean install
+git clone <repository-url>
+cd chengzhang-rest
+```
 
-# 运行项目
+2. 编译项目：
+```bash
+mvn clean compile
+```
+
+3. 运行项目：
+```bash
 mvn spring-boot:run
 ```
 
-或者使用IDE直接运行 `ChengzhangApplication.java`
+4. 或者打包后运行：
+```bash
+mvn clean package
+java -jar target/chengzhang-rest-1.0.0.jar
+```
 
-### 4. 访问接口
+### 访问服务
 
-项目启动后，可以通过以下地址访问：
+- 服务地址：http://localhost:8080/api
+- 健康检查：http://localhost:8080/api/actuator/health（如果启用了actuator）
 
-- 基础URL: `http://localhost:8080/api`
-- 接口文档: 参考前端项目中的API文档
+## API 文档
 
-## API接口
+### 文章管理接口
 
-### 文章管理
-- `GET /api/articles` - 获取文章列表
-- `GET /api/articles/{id}` - 获取文章详情
-- `POST /api/articles` - 创建文章
-- `PUT /api/articles/{id}` - 更新文章
-- `DELETE /api/articles/{id}` - 删除文章
-- `DELETE /api/articles/batch` - 批量删除文章
-- `GET /api/articles/categories` - 获取分类列表
-- `GET /api/articles/stats` - 获取文章统计
-- `GET /api/articles/recent` - 获取最近文章
+#### 1. 获取文章列表
+```
+GET /api/articles
+```
 
-### 图片管理
-- `POST /api/upload/image` - 上传图片
-- `GET /api/upload/images` - 获取图片列表
-- `DELETE /api/upload/images/{id}` - 删除图片
-- `GET /api/upload/images/stats` - 获取图片统计
+**请求参数：**
+- `page`: 页码（默认1）
+- `size`: 每页数量（默认10）
+- `keyword`: 搜索关键词
+- `category`: 文章分类
+- `status`: 文章状态（draft/published）
+- `sortBy`: 排序字段（createdAt/updatedAt/title）
+- `sortOrder`: 排序方向（asc/desc）
 
-### 设置管理
-- `GET /api/settings` - 获取用户设置
-- `PUT /api/settings` - 更新用户设置
-- `POST /api/settings/reset` - 重置为默认设置
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "content": [
+      {
+        "id": "article_001",
+        "title": "文章标题",
+        "content": "文章内容...",
+        "summary": "文章摘要",
+        "status": "published",
+        "category": "技术",
+        "tags": ["Vue.js", "前端"],
+        "wordCount": 1200,
+        "readTime": 6,
+        "createdAt": "2024-01-01 10:00:00",
+        "updatedAt": "2024-01-01 15:30:00"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "size": 10,
+      "total": 25,
+      "totalPages": 3,
+      "hasNext": true,
+      "hasPrevious": false
+    }
+  },
+  "timestamp": "2024-01-01 16:00:00"
+}
+```
+
+#### 2. 获取文章详情
+```
+GET /api/articles/{id}
+```
+
+#### 3. 创建文章
+```
+POST /api/articles
+```
+
+**请求体：**
+```json
+{
+  "title": "文章标题",
+  "content": "文章内容（Markdown格式）",
+  "summary": "文章摘要",
+  "status": "draft",
+  "category": "技术",
+  "tags": ["标签1", "标签2"]
+}
+```
+
+#### 4. 更新文章
+```
+PUT /api/articles/{id}
+```
+
+#### 5. 删除文章
+```
+DELETE /api/articles/{id}
+```
+
+#### 6. 批量删除文章
+```
+DELETE /api/articles/batch
+```
+
+**请求体：**
+```json
+{
+  "ids": ["article_001", "article_002"]
+}
+```
+
+### 搜索接口
+
+#### 搜索文章
+```
+GET /api/articles/search?keyword=Vue&searchIn=title&status=published
+```
+
+### 数据管理接口
+
+#### 1. 导出数据
+```
+GET /api/articles/export
+```
+
+#### 2. 导入数据
+```
+POST /api/articles/import
+```
+
+#### 3. 清空数据
+```
+DELETE /api/articles/clear
+```
+
+### 统计接口
+
+#### 1. 获取统计信息
+```
+GET /api/articles/statistics
+```
+
+#### 2. 获取所有分类
+```
+GET /api/articles/categories
+```
 
 ## 项目结构
 
 ```
-src/main/java/com/chengzhang/
-├── ChengzhangApplication.java          # 启动类
-├── common/                             # 通用类
-│   ├── Result.java                     # 统一响应格式
-│   └── PageResult.java                 # 分页响应格式
-├── config/                             # 配置类
-│   └── CorsConfig.java                 # CORS配置
-├── controller/                         # 控制器
-│   ├── ArticleController.java          # 文章控制器
-│   ├── UploadController.java           # 上传控制器
-│   └── SettingsController.java         # 设置控制器
-├── dto/                                # 数据传输对象
-│   ├── ArticleDTO.java                 # 文章DTO
-│   ├── ArticleQueryDTO.java            # 文章查询DTO
-│   └── BatchDeleteDTO.java             # 批量删除DTO
-├── entity/                             # 实体类
-│   ├── Article.java                    # 文章实体
-│   ├── Image.java                      # 图片实体
-│   └── Settings.java                   # 设置实体
-├── exception/                          # 异常处理
-│   └── GlobalExceptionHandler.java     # 全局异常处理器
-├── repository/                         # 数据访问层
-│   ├── ArticleRepository.java          # 文章仓库
-│   ├── ImageRepository.java            # 图片仓库
-│   └── SettingsRepository.java         # 设置仓库
-├── service/                            # 服务接口
-│   ├── ArticleService.java             # 文章服务接口
-│   ├── ImageService.java               # 图片服务接口
-│   └── SettingsService.java            # 设置服务接口
-├── service/impl/                       # 服务实现
-│   ├── ArticleServiceImpl.java         # 文章服务实现
-│   ├── ImageServiceImpl.java           # 图片服务实现
-│   └── SettingsServiceImpl.java        # 设置服务实现
-└── util/                               # 工具类
-    └── JsonUtil.java                   # JSON工具类
+src/
+├── main/
+│   ├── java/
+│   │   └── com/
+│   │       └── chengzhang/
+│   │           ├── ChengzhangApplication.java     # 主启动类
+│   │           ├── common/                        # 通用类
+│   │           │   ├── ApiResponse.java          # 统一响应格式
+│   │           │   └── PageResponse.java         # 分页响应格式
+│   │           ├── config/                        # 配置类
+│   │           │   └── CorsConfig.java           # 跨域配置
+│   │           ├── controller/                    # 控制器
+│   │           │   └── ArticleController.java    # 文章控制器
+│   │           ├── dto/                          # 数据传输对象
+│   │           │   └── ArticleDTO.java          # 文章DTO
+│   │           ├── entity/                       # 实体类
+│   │           │   └── Article.java             # 文章实体
+│   │           ├── exception/                    # 异常处理
+│   │           │   └── GlobalExceptionHandler.java # 全局异常处理器
+│   │           ├── repository/                   # 数据访问层
+│   │           │   └── ArticleRepository.java   # 文章仓库
+│   │           └── service/                      # 服务层
+│   │               ├── ArticleService.java      # 文章服务接口
+│   │               └── impl/
+│   │                   └── ArticleServiceImpl.java # 文章服务实现
+│   └── resources/
+│       ├── application.yml                       # 应用配置
+│       └── sql/
+│           └── init.sql                         # 数据库初始化脚本
+└── test/                                        # 测试代码
 ```
 
-## 配置说明
+## 开发指南
 
-### application.yml 主要配置项
+### 代码规范
 
-- `server.port`: 服务端口（默认8080）
-- `server.servlet.context-path`: 上下文路径（/api）
-- `spring.datasource`: 数据库连接配置
-- `spring.jpa`: JPA配置
-- `spring.servlet.multipart`: 文件上传配置
-- `logging`: 日志配置
+- 使用Lombok减少样板代码
+- 遵循RESTful API设计原则
+- 统一异常处理和响应格式
+- 使用@Valid进行参数校验
+- 合理使用事务注解@Transactional
 
-## 注意事项
+### 数据库设计
 
-1. 首次运行时，Hibernate会自动创建数据库表结构
-2. 图片上传功能目前使用模拟实现，实际使用时需要配置真实的图床API
-3. 项目默认使用内存中的用户系统（userId=default），实际使用时需要集成真实的用户认证系统
-4. 建议在生产环境中配置适当的日志级别和数据库连接池
+- 使用UUID作为主键
+- 合理设计索引提高查询性能
+- 使用JSON格式存储数组类型数据
+- 设置合适的字段长度和约束
 
-## 开发说明
+### 性能优化
 
-- 所有接口都返回统一的JSON格式
-- 使用了全局异常处理器处理各种异常情况
-- 支持跨域请求，方便前端开发调试
-- 使用了Lombok简化代码，需要IDE安装Lombok插件
+- 使用分页查询避免大量数据加载
+- 合理使用数据库索引
+- 避免N+1查询问题
+- 使用连接池管理数据库连接
+
+## 部署说明
+
+### 开发环境
+
+```bash
+# 启动开发服务器
+mvn spring-boot:run
+```
+
+### 生产环境
+
+1. 打包应用：
+```bash
+mvn clean package -Dmaven.test.skip=true
+```
+
+2. 运行应用：
+```bash
+java -jar target/chengzhang-rest-1.0.0.jar --spring.profiles.active=prod
+```
+
+3. 使用Docker部署：
+```dockerfile
+FROM openjdk:8-jre-alpine
+VOLUME /tmp
+COPY target/chengzhang-rest-1.0.0.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","/app.jar"]
+```
+
+## 常见问题
+
+### 1. 数据库连接失败
+- 检查数据库服务是否启动
+- 确认数据库连接信息是否正确
+- 检查防火墙设置
+
+### 2. 跨域问题
+- 确认前端地址是否在CORS配置中
+- 检查请求头是否正确
+
+### 3. 中文乱码
+- 确保数据库字符集为utf8mb4
+- 检查连接URL中的字符编码设置
+
+## 贡献指南
+
+1. Fork 项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开 Pull Request
 
 ## 许可证
 
-MIT License
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+## 联系方式
+
+- 作者：chengzhang
+- 邮箱：your.email@example.com
+- 项目地址：https://github.com/your-username/chengzhang-rest

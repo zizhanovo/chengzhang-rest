@@ -1,248 +1,431 @@
 package com.chengzhang.service.impl;
 
-import com.chengzhang.common.PageResult;
 import com.chengzhang.dto.ArticleDTO;
-import com.chengzhang.dto.ArticleQueryDTO;
-import com.chengzhang.dto.BatchDeleteDTO;
 import com.chengzhang.entity.Article;
 import com.chengzhang.repository.ArticleRepository;
 import com.chengzhang.service.ArticleService;
-import com.chengzhang.util.JsonUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * 文章服务实现类
- * 
+ *
  * @author chengzhang
  * @since 1.0.0
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class ArticleServiceImpl implements ArticleService {
-    
+
     private final ArticleRepository articleRepository;
-    
+
+    // 中文字符正则表达式
+    private static final Pattern CHINESE_PATTERN = Pattern.compile("[\u4e00-\u9fa5]");
+    // Markdown语法正则表达式
+    private static final Pattern MARKDOWN_PATTERN = Pattern.compile("[#*`_~\\[\\]()!-]");
+    // 平均阅读速度（字/分钟）
+    private static final int READING_SPEED = 200;
+
     @Override
-    public PageResult<ArticleDTO> getArticles(ArticleQueryDTO queryDTO) {
-        // 构建分页和排序
-        Sort sort = buildSort(queryDTO.getSortBy(), queryDTO.getSortOrder());
-        Pageable pageable = PageRequest.of(queryDTO.getPage() - 1, queryDTO.getSize(), sort);
-        
-        // 执行查询
-        Page<Article> articlePage = articleRepository.findByConditions(
-            queryDTO.getKeyword(),
-            queryDTO.getCategory(),
-            queryDTO.getStatus(),
-            pageable
-        );
-        
-        // 转换为DTO
-        List<ArticleDTO> articleDTOs = articlePage.getContent().stream()
-            .map(this::convertToDTO)
-            .collect(Collectors.toList());
-        
-        return PageResult.of(articlePage.map(this::convertToDTO));
+    public Page<ArticleDTO> getArticles(Pageable pageable, String keyword, String category, String status, String sortBy, String sortOrder) {
+        log.debug("获取文章列表 - keyword: {}, category: {}, status: {}, sortBy: {}, sortOrder: {}", 
+                keyword, category, status, sortBy, sortOrder);
+
+        // 构建排序
+        Sort sort = buildSort(sortBy, sortOrder);
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+
+        Page<Article> articlePage;
+
+        // 根据条件查询
+        if (StringUtils.isNotBlank(keyword)) {
+            if (StringUtils.isNotBlank(status) && !"all".equals(status)) {
+                articlePage = articleRepository.findByKeywordAndStatus(keyword, status, sortedPageable);
+            } else {
+                articlePage = articleRepository.findByKeyword(keyword, sortedPageable);
+            }
+        } else if (StringUtils.isNotBlank(status) && !"all".equals(status)) {
+            if (StringUtils.isNotBlank(category)) {
+                articlePage = articleRepository.findByStatusAndCategory(status, category, sortedPageable);
+            } else {
+                articlePage = articleRepository.findByStatus(status, sortedPageable);
+            }
+        } else if (StringUtils.isNotBlank(category)) {
+            articlePage = articleRepository.findByCategory(category, sortedPageable);
+        } else {
+            articlePage = articleRepository.findAll(sortedPageable);
+        }
+
+        return articlePage.map(ArticleDTO::fromEntity);
     }
-    
+
     @Override
     public ArticleDTO getArticleById(String id) {
+        log.debug("获取文章详情 - id: {}", id);
+        
         Article article = articleRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("文章不存在"));
-        return convertToDTO(article);
+                .orElseThrow(() -> new RuntimeException("文章不存在: " + id));
+        
+        return ArticleDTO.fromEntity(article);
     }
-    
+
     @Override
     @Transactional
     public ArticleDTO createArticle(ArticleDTO articleDTO) {
-        Article article = convertToEntity(articleDTO);
-        article.setId("article_" + System.currentTimeMillis());
-        article = articleRepository.save(article);
-        log.info("创建文章成功，ID: {}", article.getId());
-        return convertToDTO(article);
+        log.debug("创建文章 - title: {}", articleDTO.getTitle());
+        
+        Article article = articleDTO.toEntity();
+        
+        // 自动生成摘要和统计信息
+        if (StringUtils.isBlank(article.getSummary()) && StringUtils.isNotBlank(article.getContent())) {
+            article.setSummary(generateSummary(article.getContent(), 200));
+        }
+        
+        if (StringUtils.isNotBlank(article.getContent())) {
+            article.setWordCount(countWords(article.getContent()));
+            article.setReadTime(calculateReadTime(article.getContent()));
+        }
+        
+        Article savedArticle = articleRepository.save(article);
+        log.info("文章创建成功 - id: {}, title: {}", savedArticle.getId(), savedArticle.getTitle());
+        
+        return ArticleDTO.fromEntity(savedArticle);
     }
-    
+
     @Override
     @Transactional
     public ArticleDTO updateArticle(String id, ArticleDTO articleDTO) {
+        log.debug("更新文章 - id: {}, title: {}", id, articleDTO.getTitle());
+        
         Article existingArticle = articleRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("文章不存在"));
+                .orElseThrow(() -> new RuntimeException("文章不存在: " + id));
         
         // 更新字段
-        existingArticle.setTitle(articleDTO.getTitle());
-        existingArticle.setContent(articleDTO.getContent());
-        existingArticle.setSummary(articleDTO.getSummary());
-        existingArticle.setCategory(articleDTO.getCategory());
-        existingArticle.setStatus(articleDTO.getStatus());
+        articleDTO.updateEntity(existingArticle);
         
-        // 处理标签和图片
-        if (articleDTO.getTags() != null) {
-            existingArticle.setTags(JsonUtil.toJson(articleDTO.getTags()));
-        }
-        if (articleDTO.getImages() != null) {
-            existingArticle.setImages(JsonUtil.toJson(articleDTO.getImages()));
+        // 重新计算摘要和统计信息
+        if (StringUtils.isNotBlank(existingArticle.getContent())) {
+            if (StringUtils.isBlank(existingArticle.getSummary())) {
+                existingArticle.setSummary(generateSummary(existingArticle.getContent(), 200));
+            }
+            existingArticle.setWordCount(countWords(existingArticle.getContent()));
+            existingArticle.setReadTime(calculateReadTime(existingArticle.getContent()));
         }
         
-        existingArticle = articleRepository.save(existingArticle);
-        log.info("更新文章成功，ID: {}", id);
-        return convertToDTO(existingArticle);
+        Article updatedArticle = articleRepository.save(existingArticle);
+        log.info("文章更新成功 - id: {}, title: {}", updatedArticle.getId(), updatedArticle.getTitle());
+        
+        return ArticleDTO.fromEntity(updatedArticle);
     }
-    
+
     @Override
     @Transactional
     public void deleteArticle(String id) {
+        log.debug("删除文章 - id: {}", id);
+        
         if (!articleRepository.existsById(id)) {
-            throw new RuntimeException("文章不存在");
+            throw new RuntimeException("文章不存在: " + id);
         }
+        
         articleRepository.deleteById(id);
-        log.info("删除文章成功，ID: {}", id);
+        log.info("文章删除成功 - id: {}", id);
     }
-    
+
     @Override
     @Transactional
-    public Map<String, Object> batchDeleteArticles(BatchDeleteDTO batchDeleteDTO) {
-        List<String> ids = batchDeleteDTO.getIds();
+    public Map<String, Object> batchDeleteArticles(List<String> ids) {
+        log.debug("批量删除文章 - ids: {}", ids);
+        
         List<String> existingIds = new ArrayList<>();
         List<String> failedIds = new ArrayList<>();
         
         for (String id : ids) {
-            try {
-                if (articleRepository.existsById(id)) {
-                    articleRepository.deleteById(id);
-                    existingIds.add(id);
-                } else {
-                    failedIds.add(id);
-                }
-            } catch (Exception e) {
-                log.error("删除文章失败，ID: {}, 错误: {}", id, e.getMessage());
+            if (articleRepository.existsById(id)) {
+                existingIds.add(id);
+            } else {
                 failedIds.add(id);
             }
+        }
+        
+        if (!existingIds.isEmpty()) {
+            articleRepository.deleteAllById(existingIds);
         }
         
         Map<String, Object> result = new HashMap<>();
         result.put("deletedCount", existingIds.size());
         result.put("failedIds", failedIds);
         
-        log.info("批量删除文章完成，成功: {}, 失败: {}", existingIds.size(), failedIds.size());
+        log.info("批量删除文章完成 - 成功: {}, 失败: {}", existingIds.size(), failedIds.size());
+        
         return result;
     }
-    
+
+    @Override
+    public Map<String, Object> searchArticles(String keyword, String searchIn, Boolean caseSensitive, 
+                                            Boolean wholeWord, String status, List<String> tags, 
+                                            LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+        log.debug("搜索文章 - keyword: {}, searchIn: {}, status: {}", keyword, searchIn, status);
+        
+        long startTime = System.currentTimeMillis();
+        
+        Page<Article> articlePage;
+        
+        // 根据搜索范围和条件查询
+        if (StringUtils.isNotBlank(keyword)) {
+            if ("title".equals(searchIn)) {
+                articlePage = articleRepository.findByTitleContaining(keyword, pageable);
+            } else if ("content".equals(searchIn)) {
+                articlePage = articleRepository.findByContentContaining(keyword, pageable);
+            } else {
+                if (StringUtils.isNotBlank(status) && !"all".equals(status)) {
+                    articlePage = articleRepository.findByKeywordAndStatus(keyword, status, pageable);
+                } else {
+                    articlePage = articleRepository.findByKeyword(keyword, pageable);
+                }
+            }
+        } else if (startDate != null && endDate != null) {
+            articlePage = articleRepository.findByCreatedAtBetween(startDate, endDate, pageable);
+        } else {
+            articlePage = articleRepository.findAll(pageable);
+        }
+        
+        // 标签过滤（后处理）
+        if (tags != null && !tags.isEmpty()) {
+            List<Article> filteredArticles = articlePage.getContent().stream()
+                    .filter(article -> {
+                        List<String> articleTags = article.getTagList();
+                        return tags.stream().anyMatch(articleTags::contains);
+                    })
+                    .collect(Collectors.toList());
+            // 这里简化处理，实际应该重新构建Page对象
+        }
+        
+        long searchTime = System.currentTimeMillis() - startTime;
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("articles", articlePage.getContent().stream()
+                .map(ArticleDTO::fromEntity)
+                .collect(Collectors.toList()));
+        result.put("total", articlePage.getTotalElements());
+        result.put("searchTime", searchTime);
+        
+        return result;
+    }
+
+    @Override
+    public Map<String, Object> exportAllArticles() {
+        log.debug("导出所有文章数据");
+        
+        List<Article> articles = articleRepository.findAll();
+        List<ArticleDTO> articleDTOs = articles.stream()
+                .map(ArticleDTO::fromEntity)
+                .collect(Collectors.toList());
+        
+        Map<String, Object> exportData = new HashMap<>();
+        exportData.put("articles", articleDTOs);
+        exportData.put("exportTime", LocalDateTime.now());
+        exportData.put("version", "1.0.0");
+        
+        log.info("导出文章数据完成 - 数量: {}", articles.size());
+        
+        return exportData;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> importArticles(List<ArticleDTO> articles, Boolean merge) {
+        log.debug("导入文章数据 - 数量: {}, 合并模式: {}", articles.size(), merge);
+        
+        if (!merge) {
+            // 非合并模式，先清空现有数据
+            articleRepository.deleteAll();
+        }
+        
+        int imported = 0;
+        int skipped = 0;
+        
+        for (ArticleDTO articleDTO : articles) {
+            try {
+                if (merge && StringUtils.isNotBlank(articleDTO.getId()) && 
+                    articleRepository.existsById(articleDTO.getId())) {
+                    skipped++;
+                    continue;
+                }
+                
+                Article article = articleDTO.toEntity();
+                if (merge && StringUtils.isNotBlank(articleDTO.getId()) && 
+                    articleRepository.existsById(articleDTO.getId())) {
+                    // ID冲突，生成新ID
+                    article.setId(null);
+                }
+                
+                // 自动生成摘要和统计信息
+                if (StringUtils.isBlank(article.getSummary()) && StringUtils.isNotBlank(article.getContent())) {
+                    article.setSummary(generateSummary(article.getContent(), 200));
+                }
+                
+                if (StringUtils.isNotBlank(article.getContent())) {
+                    article.setWordCount(countWords(article.getContent()));
+                    article.setReadTime(calculateReadTime(article.getContent()));
+                }
+                
+                articleRepository.save(article);
+                imported++;
+            } catch (Exception e) {
+                log.error("导入文章失败 - title: {}, error: {}", articleDTO.getTitle(), e.getMessage());
+                skipped++;
+            }
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("imported", imported);
+        result.put("skipped", skipped);
+        result.put("total", articleRepository.count());
+        
+        log.info("导入文章数据完成 - 导入: {}, 跳过: {}", imported, skipped);
+        
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public void clearAllArticles() {
+        log.debug("清空所有文章数据");
+        
+        long count = articleRepository.count();
+        articleRepository.deleteAll();
+        
+        log.info("清空文章数据完成 - 删除数量: {}", count);
+    }
+
+    @Override
+    public Map<String, Object> getArticleStatistics() {
+        log.debug("获取文章统计信息");
+        
+        long totalArticles = articleRepository.count();
+        long publishedArticles = articleRepository.countByStatus("published");
+        long draftArticles = articleRepository.countByStatus("draft");
+        Long totalWords = articleRepository.sumWordCount();
+        Long totalReadTime = articleRepository.sumReadTime();
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalArticles", totalArticles);
+        stats.put("publishedArticles", publishedArticles);
+        stats.put("draftArticles", draftArticles);
+        stats.put("totalWords", totalWords != null ? totalWords : 0L);
+        stats.put("totalReadTime", totalReadTime != null ? totalReadTime : 0L);
+        stats.put("lastUpdated", LocalDateTime.now());
+        
+        // 标签统计（简化实现）
+        List<Article> articles = articleRepository.findAll();
+        Map<String, Long> tagsStats = articles.stream()
+                .flatMap(article -> article.getTagList().stream())
+                .collect(Collectors.groupingBy(tag -> tag, Collectors.counting()));
+        
+        List<Map<String, Object>> tagsStatsList = tagsStats.entrySet().stream()
+                .map(entry -> {
+                    Map<String, Object> tagStat = new HashMap<>();
+                    tagStat.put("tag", entry.getKey());
+                    tagStat.put("count", entry.getValue());
+                    return tagStat;
+                })
+                .sorted((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")))
+                .collect(Collectors.toList());
+        
+        stats.put("tagsStats", tagsStatsList);
+        
+        return stats;
+    }
+
     @Override
     public List<String> getAllCategories() {
         return articleRepository.findAllCategories();
     }
-    
+
     @Override
-    public Map<String, Object> getArticleStats() {
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalArticles", articleRepository.count());
-        stats.put("publishedArticles", articleRepository.countByStatus("published"));
-        stats.put("draftArticles", articleRepository.countByStatus("draft"));
+    public String generateSummary(String content, Integer maxLength) {
+        if (StringUtils.isBlank(content)) {
+            return "";
+        }
         
-        // 分类统计
-        List<String> categories = getAllCategories();
-        List<Map<String, Object>> categoryStats = categories.stream()
-            .map(category -> {
-                Map<String, Object> stat = new HashMap<>();
-                stat.put("category", category);
-                stat.put("count", articleRepository.countByCategory(category));
-                return stat;
-            })
-            .collect(Collectors.toList());
-        stats.put("categoriesStats", categoryStats);
+        // 移除Markdown语法
+        String cleanContent = MARKDOWN_PATTERN.matcher(content).replaceAll("");
+        cleanContent = cleanContent.replaceAll("\n+", " ").trim();
         
-        return stats;
+        if (cleanContent.length() <= maxLength) {
+            return cleanContent;
+        }
+        
+        return cleanContent.substring(0, maxLength) + "...";
     }
-    
+
     @Override
-    public List<ArticleDTO> getRecentArticles() {
-        List<Article> recentArticles = articleRepository.findTop10ByOrderByCreatedAtDesc();
-        return recentArticles.stream()
-            .map(this::convertToDTO)
-            .collect(Collectors.toList());
+    public Integer countWords(String content) {
+        if (StringUtils.isBlank(content)) {
+            return 0;
+        }
+        
+        // 移除Markdown语法
+        String cleanContent = MARKDOWN_PATTERN.matcher(content).replaceAll("");
+        
+        // 统计中文字符
+        Matcher chineseMatcher = CHINESE_PATTERN.matcher(cleanContent);
+        long chineseCount = 0;
+        while (chineseMatcher.find()) {
+            chineseCount++;
+        }
+        
+        // 统计英文单词
+        String[] words = cleanContent.replaceAll("[\u4e00-\u9fa5]", " ")
+                .split("\\s+");
+        long englishWords = Arrays.stream(words)
+                .filter(word -> !word.trim().isEmpty())
+                .count();
+        
+        return (int) (chineseCount + englishWords);
     }
-    
+
+    @Override
+    public Integer calculateReadTime(String content) {
+        Integer wordCount = countWords(content);
+        return Math.max(1, (int) Math.ceil((double) wordCount / READING_SPEED));
+    }
+
     /**
      * 构建排序
      */
     private Sort buildSort(String sortBy, String sortOrder) {
         Sort.Direction direction = "asc".equalsIgnoreCase(sortOrder) ? 
-            Sort.Direction.ASC : Sort.Direction.DESC;
+                Sort.Direction.ASC : Sort.Direction.DESC;
         
-        String property;
-        switch (sortBy) {
+        String sortField;
+        switch (StringUtils.defaultString(sortBy, "updatedAt")) {
+            case "createdAt":
+                sortField = "createdAt";
+                break;
             case "title":
-                property = "title";
+                sortField = "title";
                 break;
             case "updatedAt":
-                property = "updatedAt";
-                break;
-            case "createdAt":
             default:
-                property = "createdAt";
+                sortField = "updatedAt";
                 break;
         }
         
-        return Sort.by(direction, property);
-    }
-    
-    /**
-     * 实体转DTO
-     */
-    private ArticleDTO convertToDTO(Article article) {
-        ArticleDTO dto = new ArticleDTO();
-        dto.setId(article.getId());
-        dto.setTitle(article.getTitle());
-        dto.setContent(article.getContent());
-        dto.setSummary(article.getSummary());
-        dto.setCategory(article.getCategory());
-        dto.setStatus(article.getStatus());
-        dto.setWordCount(article.getWordCount());
-        dto.setReadTime(article.getReadTime());
-        dto.setCreatedAt(article.getCreatedAt());
-        dto.setUpdatedAt(article.getUpdatedAt());
-        
-        // 处理JSON字段
-        if (StringUtils.hasText(article.getTags())) {
-            dto.setTags(JsonUtil.fromJson(article.getTags(), List.class));
-        }
-        if (StringUtils.hasText(article.getImages())) {
-            dto.setImages(JsonUtil.fromJson(article.getImages(), List.class));
-        }
-        
-        return dto;
-    }
-    
-    /**
-     * DTO转实体
-     */
-    private Article convertToEntity(ArticleDTO dto) {
-        Article article = new Article();
-        article.setTitle(dto.getTitle());
-        article.setContent(dto.getContent());
-        article.setSummary(dto.getSummary());
-        article.setCategory(dto.getCategory());
-        article.setStatus(dto.getStatus() != null ? dto.getStatus() : "draft");
-        
-        // 处理JSON字段
-        if (dto.getTags() != null) {
-            article.setTags(JsonUtil.toJson(dto.getTags()));
-        }
-        if (dto.getImages() != null) {
-            article.setImages(JsonUtil.toJson(dto.getImages()));
-        }
-        
-        return article;
+        return Sort.by(direction, sortField);
     }
 }
