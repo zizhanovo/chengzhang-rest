@@ -30,6 +30,15 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
     default-property-inclusion: non_null
+    
+  # 文件上传配置
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 50MB
+      file-size-threshold: 2KB
+      resolve-lazily: false
 
 # 日志配置
 logging:
@@ -57,3 +66,31 @@ chengzhang:
   page:
     default-size: 10
     max-size: 100
+  # 图片上传配置
+  image:
+    # 上传路径配置
+    upload-path: "uploads/images/"
+    # 访问路径前缀
+    access-path: "/uploads/images/**"
+    # 文件大小限制（字节）
+    max-file-size: 10485760  # 10MB
+    # 允许的MIME类型
+    allowed-mime-types:
+      - "image/jpeg"
+      - "image/jpg"
+      - "image/png"
+      - "image/gif"
+      - "image/webp"
+      - "image/bmp"
+    # 图片质量压缩配置
+    compression:
+      enabled: true
+      quality: 0.8
+      max-width: 1920
+      max-height: 1080
+    # 缩略图配置
+    thumbnail:
+      enabled: true
+      width: 200
+      height: 200
+      suffix: "_thumb"
