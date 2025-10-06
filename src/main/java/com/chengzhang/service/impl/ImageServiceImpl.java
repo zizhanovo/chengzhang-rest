@@ -316,7 +316,7 @@ public class ImageServiceImpl implements ImageService {
 
     private String saveFile(MultipartFile file, String fileName) throws IOException {
         // 创建按日期分组的目录
-        String dateDir = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        String dateDir = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         Path uploadDir = Paths.get(uploadPath, dateDir);
         Files.createDirectories(uploadDir);
 
@@ -329,7 +329,7 @@ public class ImageServiceImpl implements ImageService {
 
     private String saveBase64File(byte[] data, String fileName) throws IOException {
         // 创建按日期分组的目录
-        String dateDir = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        String dateDir = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         Path uploadDir = Paths.get(uploadPath, dateDir);
         Files.createDirectories(uploadDir);
 
