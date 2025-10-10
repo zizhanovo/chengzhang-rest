@@ -41,9 +41,9 @@ public class ArticleServiceImpl implements ArticleService {
     private static final int READING_SPEED = 200;
 
     @Override
-    public Page<ArticleDTO> getArticles(Pageable pageable, String keyword, String category, String status, String sortBy, String sortOrder) {
-        log.debug("获取文章列表 - keyword: {}, category: {}, status: {}, sortBy: {}, sortOrder: {}", 
-                keyword, category, status, sortBy, sortOrder);
+    public Page<ArticleDTO> getArticles(Pageable pageable, String keyword, String category, String status, String collection, String sortBy, String sortOrder) {
+        log.debug("获取文章列表 - keyword: {}, category: {}, status: {}, collection: {}, sortBy: {}, sortOrder: {}", 
+                keyword, category, status, collection, sortBy, sortOrder);
 
         // 构建排序
         Sort sort = buildSort(sortBy, sortOrder);
@@ -54,18 +54,40 @@ public class ArticleServiceImpl implements ArticleService {
         // 根据条件查询
         if (StringUtils.isNotBlank(keyword)) {
             if (StringUtils.isNotBlank(status) && !"all".equals(status)) {
-                articlePage = articleRepository.findByKeywordAndStatus(keyword, status, sortedPageable);
+                if (StringUtils.isNotBlank(collection) && !"all".equals(collection)) {
+                    articlePage = articleRepository.findByKeywordAndStatusAndCollectionId(keyword, status, collection, sortedPageable);
+                } else {
+                    articlePage = articleRepository.findByKeywordAndStatus(keyword, status, sortedPageable);
+                }
             } else {
-                articlePage = articleRepository.findByKeyword(keyword, sortedPageable);
+                if (StringUtils.isNotBlank(collection) && !"all".equals(collection)) {
+                    articlePage = articleRepository.findByKeywordAndCollectionId(keyword, collection, sortedPageable);
+                } else {
+                    articlePage = articleRepository.findByKeyword(keyword, sortedPageable);
+                }
             }
         } else if (StringUtils.isNotBlank(status) && !"all".equals(status)) {
             if (StringUtils.isNotBlank(category)) {
-                articlePage = articleRepository.findByStatusAndCategory(status, category, sortedPageable);
+                if (StringUtils.isNotBlank(collection) && !"all".equals(collection)) {
+                    articlePage = articleRepository.findByStatusAndCategoryAndCollectionId(status, category, collection, sortedPageable);
+                } else {
+                    articlePage = articleRepository.findByStatusAndCategory(status, category, sortedPageable);
+                }
             } else {
-                articlePage = articleRepository.findByStatus(status, sortedPageable);
+                if (StringUtils.isNotBlank(collection) && !"all".equals(collection)) {
+                    articlePage = articleRepository.findByStatusAndCollectionId(status, collection, sortedPageable);
+                } else {
+                    articlePage = articleRepository.findByStatus(status, sortedPageable);
+                }
             }
         } else if (StringUtils.isNotBlank(category)) {
-            articlePage = articleRepository.findByCategory(category, sortedPageable);
+            if (StringUtils.isNotBlank(collection) && !"all".equals(collection)) {
+                articlePage = articleRepository.findByCategoryAndCollectionId(category, collection, sortedPageable);
+            } else {
+                articlePage = articleRepository.findByCategory(category, sortedPageable);
+            }
+        } else if (StringUtils.isNotBlank(collection) && !"all".equals(collection)) {
+            articlePage = articleRepository.findByCollectionId(collection, sortedPageable);
         } else {
             articlePage = articleRepository.findAll(sortedPageable);
         }

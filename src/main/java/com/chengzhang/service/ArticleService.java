@@ -19,15 +19,16 @@ public interface ArticleService {
     /**
      * 获取文章列表（分页）
      *
-     * @param pageable 分页参数
-     * @param keyword  搜索关键词
-     * @param category 文章分类
-     * @param status   文章状态
-     * @param sortBy   排序字段
-     * @param sortOrder 排序方向
+     * @param pageable   分页参数
+     * @param keyword    搜索关键词
+     * @param category   文章分类
+     * @param status     文章状态
+     * @param collection 合集ID
+     * @param sortBy     排序字段
+     * @param sortOrder  排序方向
      * @return 文章分页列表
      */
-    Page<ArticleDTO> getArticles(Pageable pageable, String keyword, String category, String status, String sortBy, String sortOrder);
+    Page<ArticleDTO> getArticles(Pageable pageable, String keyword, String category, String status, String collection, String sortBy, String sortOrder);
 
     /**
      * 根据ID获取文章详情

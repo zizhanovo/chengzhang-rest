@@ -52,6 +52,11 @@ public class ArticleDTO {
     private String category;
 
     /**
+     * 文章合集ID
+     */
+    private String collectionId;
+
+    /**
      * 文章标签
      */
     private List<String> tags;
@@ -101,6 +106,7 @@ public class ArticleDTO {
         dto.setSummary(article.getSummary());
         dto.setStatus(article.getStatus());
         dto.setCategory(article.getCategory());
+        dto.setCollectionId(article.getCollectionId());
         dto.setTags(article.getTagList());
         dto.setWordCount(article.getWordCount());
         dto.setReadTime(article.getReadTime());
@@ -124,6 +130,7 @@ public class ArticleDTO {
         article.setSummary(this.summary);
         article.setStatus(this.status != null ? this.status : "draft");
         article.setCategory(this.category);
+        article.setCollectionId(this.collectionId);
         article.setTagList(this.tags);
         article.setWordCount(this.wordCount != null ? this.wordCount : 0);
         article.setReadTime(this.readTime != null ? this.readTime : 0);
@@ -152,6 +159,9 @@ public class ArticleDTO {
         }
         if (this.category != null) {
             article.setCategory(this.category);
+        }
+        if (this.collectionId != null) {
+            article.setCollectionId(this.collectionId);
         }
         if (this.tags != null) {
             article.setTagList(this.tags);

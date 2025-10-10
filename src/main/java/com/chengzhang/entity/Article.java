@@ -68,6 +68,12 @@ public class Article {
     private String category;
 
     /**
+     * 文章合集ID
+     */
+    @Column(name = "collection_id", length = 36)
+    private String collectionId;
+
+    /**
      * 文章标签（JSON格式存储）
      */
     @Column(name = "tags", columnDefinition = "TEXT")
@@ -122,7 +128,7 @@ public class Article {
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
-
+    
     /**
      * 获取标签列表
      */

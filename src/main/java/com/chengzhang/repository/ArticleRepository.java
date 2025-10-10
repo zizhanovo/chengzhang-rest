@@ -4,6 +4,7 @@ import com.chengzhang.entity.Article;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -171,4 +172,137 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
      * @return 文章分页列表
      */
     Page<Article> findAllByOrderByTitleAsc(Pageable pageable);
+
+    /**
+     * 根据合集ID查询文章
+     *
+     * @param collectionId 合集ID
+     * @param pageable 分页参数
+     * @return 文章分页列表
+     */
+    Page<Article> findByCollectionId(String collectionId, Pageable pageable);
+
+    /**
+     * 根据合集ID和状态查询文章
+     *
+     * @param collectionId 合集ID
+     * @param status 文章状态
+     * @param pageable 分页参数
+     * @return 文章分页列表
+     */
+    Page<Article> findByCollectionIdAndStatus(String collectionId, String status, Pageable pageable);
+
+    /**
+     * 统计指定合集的文章数量
+     *
+     * @param collectionId 合集ID
+     * @return 文章数量
+     */
+    long countByCollectionId(String collectionId);
+
+    /**
+     * 将指定合集ID的文章的合集ID设置为null
+     *
+     * @param collectionId 合集ID
+     * @return 更新的记录数
+     */
+    @Modifying
+    @Query("UPDATE Article a SET a.collectionId = null WHERE a.collectionId = :collectionId")
+    int updateCollectionIdToNull(@Param("collectionId") String collectionId);
+
+    /**
+     * 查询未分类的文章（collectionId为null或空）
+     *
+     * @param pageable 分页参数
+     * @return 文章分页列表
+     */
+    @Query("SELECT a FROM Article a WHERE a.collectionId IS NULL OR a.collectionId = ''")
+    Page<Article> findUncategorizedArticles(Pageable pageable);
+
+    /**
+     * 统计未分类的文章数量
+     *
+     * @return 文章数量
+     */
+    @Query("SELECT COUNT(a) FROM Article a WHERE a.collectionId IS NULL OR a.collectionId = ''")
+    long countUncategorizedArticles();
+
+    /**
+     * 根据关键词和合集ID搜索文章
+     *
+     * @param keyword      搜索关键词
+     * @param collectionId 合集ID
+     * @param pageable     分页参数
+     * @return 文章分页列表
+     */
+    @Query("SELECT a FROM Article a WHERE (a.title LIKE %:keyword% OR a.content LIKE %:keyword% OR a.summary LIKE %:keyword%) AND a.collectionId = :collectionId")
+    Page<Article> findByKeywordAndCollectionId(@Param("keyword") String keyword, @Param("collectionId") String collectionId, Pageable pageable);
+
+    /**
+     * 根据状态和合集ID查询文章
+     *
+     * @param status       文章状态
+     * @param collectionId 合集ID
+     * @param pageable     分页参数
+     * @return 文章分页列表
+     */
+    Page<Article> findByStatusAndCollectionId(String status, String collectionId, Pageable pageable);
+
+    /**
+     * 根据分类和合集ID查询文章
+     *
+     * @param category     文章分类
+     * @param collectionId 合集ID
+     * @param pageable     分页参数
+     * @return 文章分页列表
+     */
+    Page<Article> findByCategoryAndCollectionId(String category, String collectionId, Pageable pageable);
+
+    /**
+     * 根据关键词、状态和合集ID搜索文章
+     *
+     * @param keyword      搜索关键词
+     * @param status       文章状态
+     * @param collectionId 合集ID
+     * @param pageable     分页参数
+     * @return 文章分页列表
+     */
+    @Query("SELECT a FROM Article a WHERE (a.title LIKE %:keyword% OR a.content LIKE %:keyword% OR a.summary LIKE %:keyword%) AND a.status = :status AND a.collectionId = :collectionId")
+    Page<Article> findByKeywordAndStatusAndCollectionId(@Param("keyword") String keyword, @Param("status") String status, @Param("collectionId") String collectionId, Pageable pageable);
+
+    /**
+     * 根据关键词、分类和合集ID搜索文章
+     *
+     * @param keyword      搜索关键词
+     * @param category     文章分类
+     * @param collectionId 合集ID
+     * @param pageable     分页参数
+     * @return 文章分页列表
+     */
+    @Query("SELECT a FROM Article a WHERE (a.title LIKE %:keyword% OR a.content LIKE %:keyword% OR a.summary LIKE %:keyword%) AND a.category = :category AND a.collectionId = :collectionId")
+    Page<Article> findByKeywordAndCategoryAndCollectionId(@Param("keyword") String keyword, @Param("category") String category, @Param("collectionId") String collectionId, Pageable pageable);
+
+    /**
+     * 根据状态、分类和合集ID查询文章
+     *
+     * @param status       文章状态
+     * @param category     文章分类
+     * @param collectionId 合集ID
+     * @param pageable     分页参数
+     * @return 文章分页列表
+     */
+    Page<Article> findByStatusAndCategoryAndCollectionId(String status, String category, String collectionId, Pageable pageable);
+
+    /**
+     * 根据关键词、状态、分类和合集ID搜索文章
+     *
+     * @param keyword      搜索关键词
+     * @param status       文章状态
+     * @param category     文章分类
+     * @param collectionId 合集ID
+     * @param pageable     分页参数
+     * @return 文章分页列表
+     */
+    @Query("SELECT a FROM Article a WHERE (a.title LIKE %:keyword% OR a.content LIKE %:keyword% OR a.summary LIKE %:keyword%) AND a.status = :status AND a.category = :category AND a.collectionId = :collectionId")
+    Page<Article> findByKeywordAndStatusAndCategoryAndCollectionId(@Param("keyword") String keyword, @Param("status") String status, @Param("category") String category, @Param("collectionId") String collectionId, Pageable pageable);
 }

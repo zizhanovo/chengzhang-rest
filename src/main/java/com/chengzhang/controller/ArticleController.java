@@ -38,13 +38,14 @@ public class ArticleController {
     /**
      * 获取文章列表
      *
-     * @param page      页码，默认1
-     * @param size      每页数量，默认10
-     * @param keyword   搜索关键词
-     * @param category  文章分类
-     * @param status    文章状态：draft/published
-     * @param sortBy    排序字段：createdAt/updatedAt/title
-     * @param sortOrder 排序方向：asc/desc
+     * @param page       页码，默认1
+     * @param size       每页数量，默认10
+     * @param keyword    搜索关键词
+     * @param category   文章分类
+     * @param status     文章状态：draft/published
+     * @param collection 合集ID筛选
+     * @param sortBy     排序字段：createdAt/updatedAt/title
+     * @param sortOrder  排序方向：asc/desc
      * @return 文章分页列表
      */
     @GetMapping
@@ -54,18 +55,19 @@ public class ArticleController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String collection,
             @RequestParam(defaultValue = "updatedAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortOrder) {
         
-        log.info("获取文章列表 - page: {}, size: {}, keyword: {}, category: {}, status: {}", 
-                page, size, keyword, category, status);
+        log.info("获取文章列表 - page: {}, size: {}, keyword: {}, category: {}, status: {}, collection: {}", 
+                page, size, keyword, category, status, collection);
         
         try {
             // 页码从1开始，转换为从0开始
             Pageable pageable = PageRequest.of(page - 1, Math.min(size, 100));
             
             Page<ArticleDTO> articlePage = articleService.getArticles(
-                    pageable, keyword, category, status, sortBy, sortOrder);
+                    pageable, keyword, category, status, collection, sortBy, sortOrder);
             
             PageResponse<ArticleDTO> pageResponse = PageResponse.of(articlePage);
             
