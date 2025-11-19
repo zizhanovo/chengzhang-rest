@@ -25,12 +25,14 @@ public class CorsConfig {
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
         
-        // 允许的源
+        // 允许的源（支持生产环境）
         config.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
+                "http://198.44.179.48:*",
                 "https://localhost:*",
-                "https://127.0.0.1:*"
+                "https://127.0.0.1:*",
+                "*"  // 生产环境允许所有源（或根据配置限制）
         ));
         
         // 允许的请求头
@@ -71,8 +73,10 @@ public class CorsConfig {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
+                "http://198.44.179.48:*",
                 "https://localhost:*",
-                "https://127.0.0.1:*"
+                "https://127.0.0.1:*",
+                "*"  // 生产环境允许所有源
         ));
         
         configuration.setAllowedMethods(Arrays.asList(

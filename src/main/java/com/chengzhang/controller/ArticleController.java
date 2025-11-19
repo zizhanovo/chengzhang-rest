@@ -30,7 +30,7 @@ import java.util.Map;
 @RequestMapping("/articles")
 @RequiredArgsConstructor
 @Validated
-@CrossOrigin(origins = {"http://localhost:8080", "http://127.0.0.1:8080"}, allowCredentials = "true")
+// CORS配置由CorsConfig统一管理
 public class ArticleController {
 
     private final ArticleService articleService;
