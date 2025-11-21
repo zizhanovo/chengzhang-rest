@@ -46,4 +46,16 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> serverError(String message) {
         return new ApiResponse<>(500, message, null);
     }
+
+    public static <T> ApiResponse<T> notFound(String message) {
+        return new ApiResponse<>(404, message, null);
+    }
+
+    public static <T> ApiResponse<T> created(String message, T data) {
+        return new ApiResponse<>(201, message, data);
+    }
+
+    public static <T> ApiResponse<T> badRequest(String message) {
+        return new ApiResponse<>(400, message, null);
+    }
 }
