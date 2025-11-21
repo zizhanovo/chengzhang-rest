@@ -16,7 +16,7 @@ import java.util.Map;
  * 积分控制器
  */
 @RestController
-@RequestMapping("/api/points")
+@RequestMapping("/points")
 @CrossOrigin(origins = "*")
 public class PointController {
 

@@ -14,7 +14,7 @@ import java.util.Map;
  * 订阅控制器
  */
 @RestController
-@RequestMapping("/api/subscriptions")
+@RequestMapping("/subscriptions")
 @CrossOrigin(origins = "*")
 public class SubscriptionController {
 
